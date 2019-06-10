@@ -28,7 +28,7 @@ if (canvas.getContext) {
 
     let options = {
         data: {
-            yData: times2,
+            yData: [7.7, 8.1, 7.8, 8.5, 8.1, 7.9, 7.7, 7.8, 7.7, 8],
             xData: times
         },
 

@@ -73,13 +73,14 @@ export let lineChart = function (ctx, options) {
 
                 // Поверка на маленький шаг, если он мелкий, тогда делаем дробь из нашего шага
                 if (yDataStep <= 10) {
-                    yDataStep = yDataStep / dividerValue;
-                    // yDataStep = (yDataStep / dividerValue).toFixed(1);
+                    // Старый вариант
+                    // yDataStep = yDataStep / dividerValue;
+                    yDataStep = +(yDataStep / dividerValue).toFixed(1);
                 }
 
                 // Если нуля нету, записываем наш минимальный шаг
-                yDataMinStep = +yDataSorted[0] - yDataStep;
-
+                yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
+                // Старый вариант
                 // yDataMinStep = Math.round(yDataMinStep);
                 
                 // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
@@ -87,24 +88,35 @@ export let lineChart = function (ctx, options) {
             }
             /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
                 массива + один шаг, прибавляем количество наших блочков
-                (1.1 Canvas Plugin - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
-                чтобы корректно отображалось правильное количество блоков)
+                (1.1 Canvas Plugin) - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
+                чтобы корректно отображалось правильное количество блоков
             */
             for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
                 yDataRectQuantity++;
             }
+            
             /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
                 увеличиваем количество блоков еще на один 
                 (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
                 количества блоков)
             */
-            if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
+           if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
                 yDataRectQuantity++
             };
 
+            /*  (1.2 CanvasPlugin): 
+                1 - Удалена лишняя проверка.
+                2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
+                последнее отрисованное число на графике с помощью переменной yDataStep.
+            */  
+            if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
+                yDataRectQuantity++;
+            }
+
         } else {
-            /* Берем последнее число нашего отсортированного массива и прибавляем к нему 
-            первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) */
+            /*  Берем последнее число нашего отсортированного массива и прибавляем к нему 
+                первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) 
+            */
             let intermediateNumber = (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]) / 5;
             /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
                 наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
@@ -117,7 +129,7 @@ export let lineChart = function (ctx, options) {
             for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
                 yDataRectQuantity++;
             }
-
+            
             /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
                 увеличиваем количество блоков еще на один */
             if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
@@ -209,7 +221,7 @@ export let lineChart = function (ctx, options) {
         drawYLineText(ctx, rectHeight, yDataStep, yStepFactor, yDataMinusQuantity, yDataRectQuantity, chartFontOptions);
         drawXLineText(ctx, xDataSorted, rectWidth, xDataRectQuantity, chartFontOptions);
         drawChartLines(ctx, yDataOriginal, rectWidth, rectHeight, xDataRectQuantityOriginal, xDataRectQuantity, yDataRectQuantity, chartLineOptions, xCoordsChartLines, yCoordsChartLines);
-        drawChartInfoContainer(ctx);
+        // drawChartInfoContainer(ctx);
     }
 
 
@@ -262,7 +274,7 @@ export let lineChart = function (ctx, options) {
         chartFontOptions // Настройки шрифтов в объекте
     ) {
         ctx.beginPath();
-
+        
         // Настройки текста
         ctx.font = chartFontOptions.chartFontSize + "px " + chartFontOptions.chartFontFamily;
         ctx.fillStyle = chartFontOptions.chartFontColor;
@@ -282,7 +294,7 @@ export let lineChart = function (ctx, options) {
             ctx.moveTo(fieldXStartPos, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
             ctx.lineTo(fieldXStartPos - 10, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
             ctx.stroke();
-
+            
             if (yDataMinusQuantity > 0) {
                 ctx.fillText('-' + yDataStep * yDataMinusQuantity, fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i)
                 yDataMinusQuantity--;
@@ -292,8 +304,14 @@ export let lineChart = function (ctx, options) {
                     ctx.moveTo(fieldXStartPos, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
                     ctx.lineTo(fieldXStartPos + rectFieldWidth, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
                 }
-                // (1.1 Canvas Library) - к нулю прибавляем еще нашу новую переменную yDataMinStep, чтобы если нет 0 - отрисовка текста начиналась с минимального шага
-                ctx.fillText(0 + yDataMinStep + (yDataStep * yStepFactor), fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
+                /*  (1.1 Canvas Library) - к нулю прибавляем еще нашу новую переменную yDataMinStep, чтобы если нет 0 - отрисовка текста начиналась с минимального шага
+                    (1.2 Canvas Library):
+                    1 - Дополнительное умножения на 10 переменных: yDataMinStep, (yDataStep * yStepFactor).
+                    2 - Деление числа, которые получилось в итоге на 10, чтобы вернуть дробную часть, если они есть
+                    3 - Сделано это все из-за того, что арифметические операции с числами 0.1, 0.2 и 0.3 выполняются некорректно и
+                    выводятся числа с большими дробями, поэтому мы их все перемножаем на 10,а потом разделяем. 
+                */
+                ctx.fillText(((0 + (yDataMinStep * 10) + ((yDataStep * yStepFactor) * 10)) / 10), fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
                 yStepFactor++;
             }
         }
