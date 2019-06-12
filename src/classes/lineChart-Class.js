@@ -23,10 +23,12 @@ export let lineChart = function (ctx, options) {
 
     /* -------- Настройка блоков по оси Y-------- */
 
+    // Переменная с именем наших данных
+    let yDataName = options.data.datasets[0].name;
     // Переменная с оригинальными данными
-    let yDataOriginal = options.data.yData || [];
+    let yDataOriginal = options.data.datasets[0].yData || [];
     // Переменная с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
-    let yDataSorted = options.data.yData || [];
+    let yDataSorted = options.data.datasets[0].yData || [];
 
     // Оставаляем только уникальные значения, тем самым формируя уже готовый массив с даннными для оси Y
     yDataSorted = getUniqueValues(yDataSorted);
@@ -82,7 +84,7 @@ export let lineChart = function (ctx, options) {
                 yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
                 // Старый вариант
                 // yDataMinStep = Math.round(yDataMinStep);
-                
+
                 // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
                 yDataRectQuantity--;
             }
@@ -94,13 +96,13 @@ export let lineChart = function (ctx, options) {
             for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
                 yDataRectQuantity++;
             }
-            
+
             /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
                 увеличиваем количество блоков еще на один 
                 (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
                 количества блоков)
             */
-           if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
+            if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
                 yDataRectQuantity++
             };
 
@@ -108,7 +110,7 @@ export let lineChart = function (ctx, options) {
                 1 - Удалена лишняя проверка.
                 2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
                 последнее отрисованное число на графике с помощью переменной yDataStep.
-            */  
+            */
             if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
                 yDataRectQuantity++;
             }
@@ -129,7 +131,7 @@ export let lineChart = function (ctx, options) {
             for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
                 yDataRectQuantity++;
             }
-            
+
             /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
                 увеличиваем количество блоков еще на один */
             if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
@@ -192,6 +194,16 @@ export let lineChart = function (ctx, options) {
     };
 
 
+    /* -------- Настройка контейнера с информацией -------- */
+    let infoContainerOptions = options.infoContainerOptions || {
+        containerWidth: 120,
+        containerHeight: 50,
+        containerRadius: 10,
+        containerFillColor: "rgba(0, 0, 0, 0.8)"
+    }
+
+    let infoContainerFontOptions = options.infoContainerFontOptions || chartFontOptions;
+
 
 
 
@@ -221,7 +233,7 @@ export let lineChart = function (ctx, options) {
         drawYLineText(ctx, rectHeight, yDataStep, yStepFactor, yDataMinusQuantity, yDataRectQuantity, chartFontOptions);
         drawXLineText(ctx, xDataSorted, rectWidth, xDataRectQuantity, chartFontOptions);
         drawChartLines(ctx, yDataOriginal, rectWidth, rectHeight, xDataRectQuantityOriginal, xDataRectQuantity, yDataRectQuantity, chartLineOptions, xCoordsChartLines, yCoordsChartLines);
-        // drawChartInfoContainer(ctx);
+        drawChartInfoContainer(ctx, 25, 55, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
     }
 
 
@@ -274,12 +286,9 @@ export let lineChart = function (ctx, options) {
         chartFontOptions // Настройки шрифтов в объекте
     ) {
         ctx.beginPath();
-        
+
         // Настройки текста
-        ctx.font = chartFontOptions.chartFontSize + "px " + chartFontOptions.chartFontFamily;
-        ctx.fillStyle = chartFontOptions.chartFontColor;
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
+        editText(chartFontOptions.chartFontSize, chartFontOptions.chartFontFamily, chartFontOptions.chartFontColor, "center", "middle");
 
         // Сохраняем наличие минусовых значений для отрисовки дополнительной линии на отметке 0, если она будет
         let haveMinusQuantity = !!yDataMinusQuantity;
@@ -288,13 +297,13 @@ export let lineChart = function (ctx, options) {
             в переменноу yDataMinusQuantity, если оно больше 0, тогда шаг умножаем на это количество и выводим цифры, с каждой 
             итерацией отнимаем наше количество минусов.
             Если количество равно или меньше 0 - тогда берем нашу переменную yStepFactor и умножаем на шаг, это делается для того, чтобы 
-            можно было вывеcти 0 и не задев переменную i, потому что она нам нужна для контроля позиции текста */
+            можно было вывеcти 0 не задев переменную i, потому что она нам нужна для контроля позиции текста */
         for (let i = 0; i < yDataRectQuantity; i++) {
             // Сразу рисуем черточки возле текста
             ctx.moveTo(fieldXStartPos, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
             ctx.lineTo(fieldXStartPos - 10, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
             ctx.stroke();
-            
+
             if (yDataMinusQuantity > 0) {
                 ctx.fillText('-' + yDataStep * yDataMinusQuantity, fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i)
                 yDataMinusQuantity--;
@@ -329,10 +338,7 @@ export let lineChart = function (ctx, options) {
         ctx.beginPath();
 
         // Настройки текста
-        ctx.font = chartFontOptions.chartFontSize + "px " + chartFontOptions.chartFontFamily;
-        ctx.fillStyle = chartFontOptions.chartFontColor;
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
+        editText(chartFontOptions.chartFontSize, chartFontOptions.chartFontFamily, chartFontOptions.chartFontColor, "center", "middle");
 
         /* Проходимся по количеству блоков по оси X, если это количество меньше за 20 - рисуем текст обычно, горизонтально,
             если количество переваливает за 20, тогда делаем фишку с translate, чтобы повернуть текст и слелать его компактнее */
@@ -484,21 +490,59 @@ export let lineChart = function (ctx, options) {
         ctx, // Контекст холста
         xContainerCoord, // Координата начала контейнера по оси X
         yContainerCoord, // Координата начала контейнера по оси Y
+        infoContainerOptions,
+        infoContainerFontOptions,
+        lineColor,
+        yDataNames
     ) {
+        // Настройки текста
+        let infoContainerFontSize = infoContainerFontOptions.infoContainerFontSize,
+            infoContainerFontFamily = infoContainerFontOptions.infoContainerFontFamily,
+            infoContainerFontColor = infoContainerFontOptions.infoContainerFontColor;
+
+        // Настройки маркеров данных ( квадратиков с цветами данных )
+        let dataMarkerWidth = 13,
+            dataMarkerHeight = 13,
+            dataMarkerColor = lineColor;
+
         // Статичные настройки контейнера
         let containerWidth = 120,
-            containerHeight = 50,
-            containerRadius = 10,
-            containerFillColor = "rgba(0, 0, 0, 0.8)";
+            containerHeight = 45,
+            containerRadius = infoContainerOptions.containerRadius,
+            containerFillColor = infoContainerOptions.containerFillColor;
 
         // Начинаем рисовать
         ctx.beginPath();
         ctx.fillStyle = containerFillColor;
 
         // Используем созданную нами функцию для рисования прямоугольников с закругленными углами
-        drawRoundedRect(25, 55, containerWidth, containerHeight, containerRadius, true);
+        drawRoundedRect(xContainerCoord, yContainerCoord, containerWidth, containerHeight, containerRadius, true);
+
         // Заливаем его
         ctx.fill();
+
+        // Настройки текста
+        editText(infoContainerFontSize, infoContainerFontFamily, infoContainerFontColor, "left", "", "bold");
+
+        // Сохраняем стили для текста
+        ctx.save();
+        /* Рисуем текст, который связан с нарисованным текстом по оси Y ( Рисуем его там, где находится наш 
+            контейнер + величина нашего шрифта и + 3 по оси X и + 15 по оси Y, чтобы текст был не возле краёв )
+        */
+        ctx.fillText('Time:', xContainerCoord, yContainerCoord + 15);
+
+        // Рисуем квадратик с цветом наших данных, по которым чертятся линии
+        ctx.fillStyle = dataMarkerColor;
+        drawRoundedRect(xContainerCoord, (yContainerCoord + 32) - dataMarkerWidth / 2, dataMarkerWidth, dataMarkerHeight, 0, false);
+        ctx.fill();
+        // Откатываемся до последнего сохранения, чтобы поставить правильные стили для текста
+        ctx.restore();
+
+        // Рисуем текст, который связан с нарисованным текстом по оси X, убраем жирный шрифт
+        editText(infoContainerFontSize, infoContainerFontFamily);
+
+        ctx.fillText(yDataNames + ':', xContainerCoord + dataMarkerWidth + 3, yContainerCoord + 33);
+
     };
 
 
@@ -549,6 +593,21 @@ export let lineChart = function (ctx, options) {
             ctx.lineTo(xStart + rectWidth, (yStart + rectHeight / 2 - triangleHeight / 2) + triangleHeight);
         }
     };
+
+    // Функция для настройки текста
+    function editText(
+        fontSize,
+        fontFamily,
+        fontColor,
+        fontAlign = '',
+        fontBaseline = '',
+        fontBold = 'normal'
+    ) {
+        ctx.font = fontBold + ' ' + fontSize + 'px ' + fontFamily;
+        ctx.fillStyle = fontColor;
+        ctx.textAlign = fontAlign;
+        ctx.textBaseline = fontBaseline;
+    }
 
 
     // ----- Присваиваем публичные функции ----- 
