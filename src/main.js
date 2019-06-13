@@ -36,13 +36,13 @@ if (canvas.getContext) {
         },
 
         rectOptions: {
-            rectBorderColor: 'lightgrey',
+            borderColor: 'lightgrey',
         },
 
-        fontOptions: {
-            chartFontSize: 12,
-            chartFontFamily: 'Arial',
-            chartFontColor: 'grey'
+        globalFontOptions: {
+            fontSize: 12,
+            fontFamily: 'Arial',
+            fontColor: 'grey'
         },
 
         chartLineOptions: {
@@ -58,9 +58,9 @@ if (canvas.getContext) {
         },
 
         infoContainerFontOptions: {
-            infoContainerFontSize: 12,
-            infoContainerFontFamily: 'Arial',
-            infoContainerFontColor: '#fff'
+            fontSize: 12,
+            fontFamily: 'Arial',
+            fontColor: '#fff'
         }
     }
 

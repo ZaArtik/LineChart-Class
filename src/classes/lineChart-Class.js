@@ -3,184 +3,261 @@ export let lineChart = function (ctx, options) {
     /* ------------- ПРИВАТНЫЕ СВОЙСТВА ------------- */
 
 
-    /* ------------- Настрока блоков ------------- */
+    /* -------- Настройка поля с блоками -------- */
 
-    /* Высота и ширина поля в котором будут находится блоки (Отнимаем от ширины и высоты
-        холста по 200, чтобы осталось место для надписей и заголовков) */
-    let rectFieldWidth = ctx.canvas.width - 200,
-        rectFieldHeight = ctx.canvas.height - 200;
-    // Начало поля для блоков по X и по Y
-    let fieldXStartPos = 80,
-        fieldYStartPos = 80;
-    // Цвет границ блоков
-    let rectBorderColor = 'lightgrey';
-    if (options.rectOptions) {
-        rectBorderColor = options.rectOptions.rectBorderColor || 'lightgrey';
+    const rectFieldOptions = {
+        /* 
+            Высота и ширина поля в котором будут находится блоки (Отнимаем от ширины и высоты
+            холста по 200, чтобы осталось место для надписей и заголовков) 
+        */
+        width: ctx.canvas.width - 200,
+        height: ctx.canvas.height - 200,
+        // Начало поля для блоков по X и по Y
+        xStartPos: 80,
+        yStartPos: 80,
     }
-    // Ширина границ блоков
-    let rectLineWidth = 0.5;
+
+
+    /* -------- Настройка самих блоков -------- */
+
+    let rectOptions = {
+        // Высота блока
+        height: 0,
+        // Ширина блока
+        width: 0,
+        // Ширина границы блока
+        lineWidth: 0.5,
+        // Цвет границ блока
+        borderColor: options.rectOptions.borderColor || 'lightgrey'
+    }
 
 
     /* -------- Настройка блоков по оси Y-------- */
 
-    // Переменная с именем наших данных
-    let yDataName = options.data.datasets[0].name;
-    // Переменная с оригинальными данными
-    let yDataOriginal = options.data.datasets[0].yData || [];
-    // Переменная с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
-    let yDataSorted = options.data.datasets[0].yData || [];
+    // Создаем объект, который будет хранить все настройки данных по оси Y
+    let yAxisDataOptions = {
+        // Массив с именами наших данных
+        dataName: [],
+        // Свойство с оригинальными данными
+        originalData: [],
+        // Свойство с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
+        sortedData: [],
+        // Шаги которые будут обьявлять количество блоков по Y и текст, который будет писаться возле линии
+        step: 0,
+        // Здесь будет хранится минимальное значение отсортированного массива, в случае отсутствия нуля, чтобы начинать отсчет шагов именно с него
+        minStep: 0,
+        // Создаем переменную yStepFactor, она нам нужна для цикла в функции отрисовки текста, проверяем нужен ли нам 0
+        stepFactor: 0,
+        // Количество минусовых значений на графике по оси Y
+        minusValueQuantity: 0,
+        // Обьявляем переменную, которая будет хранить количество блочков по оси Y
+        rectQuantity: 0,
+    };
 
-    // Оставаляем только уникальные значения, тем самым формируя уже готовый массив с даннными для оси Y
-    yDataSorted = getUniqueValues(yDataSorted);
+    // Проходимся по всем ячейкам массива с данными по оси Y и добавлям инфу по нужным свойствам нашего обьекта с настройками
+    if (options.data.datasets && options.data.datasets.length > 0) {
+        options.data.datasets.forEach((dataEl) => {
+            yAxisDataOptions.dataName.push(dataEl.name);
+            yAxisDataOptions.originalData.push(dataEl.yData);
+            yAxisDataOptions.sortedData.push(dataEl.yData);
+        });
+    }
 
-    // Сортируем массив данных по увеличению
-    yDataSorted.sort(function (firstNumb, secondNumb) {
-        return firstNumb - secondNumb;
-    });
-
-    // Шаги которые будут обьявлять количество блоков по Y и текст, который будет писаться возле линии
-    let yDataStep = 0;
-    // Здесь будет хранится минимальное значение отсортированного массива, в случае отсутствия нуля, чтобы начинать отсчет шагов именно с него
-    let yDataMinStep = 0;
-    // Создаем переменную yStepFactor, она нам нужна для цикла в функции отрисовки текста, проверяем нужен ли нам 0
-    let yStepFactor = 0;
-    // Количество минусовых значений на графике по оси Y
-    let yDataMinusQuantity = 0;
-    // Обьявляем переменную, которая будет хранить количество блочков по оси Y
-    let yDataRectQuantity = 0;
-    // Формула по нахождению шага ( заключил в анонимную функцию. чтобы не сохранять промежуточную переменную)
+    // (Line Chart Canvas Library 1.31)
+    // Закрываем это все в анонимной функции, чтобы не обьявлять эти все переменные в глобальной области видимости класса
     ; (function () {
-        // Проверяем наличие минусовых значений ( Действия отличаются, если таковы присутствуют )
-        if (yDataSorted[0] >= 0) {
-            // Берем последнее число нашего отсортированного массива ( получается - самое большое число и делим его на 5)
-            let intermediateNumber = +yDataSorted[yDataSorted.length - 1] / 5;
-            /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
-                наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
-            yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
+        // Переменная с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
+        let yDataSorted = yAxisDataOptions.sortedData[0] || [];
 
-            // (1.1 Canvas Library) - Запихиваем проверку на ноль в блоки кода, которые выполняются взависимо от наличия минусовых значений
-            if (yDataSorted.indexOf('0') >= 0 || yDataSorted[0].split('')[0] === '-' || +yDataSorted[0] < yDataStep) {
-                yStepFactor = 0;
-            } else {
-                /* (1.1 Canvas Library) - Создаем промежуточную переменную, наш делитель и увеличиваем его на 1, пока он не станет
-                    равным или больше числа 5. Эта переменная нам будет нужна, чтобы уменьшить количество шагов, и соответственно 
-                    увеличить количество блоков и текста.
-                */
-                let dividerValue = 0;
-                while (dividerValue <= 5) {
-                    dividerValue += 1;
-                }
+        // Оставаляем только уникальные значения, тем самым формируя уже готовый массив с даннными для оси Y
+        yDataSorted = getUniqueValues(yDataSorted);
 
-                yStepFactor = 1;
+        // Сортируем массив данных по увеличению
+        yDataSorted.sort(function (firstNumb, secondNumb) {
+            return firstNumb - secondNumb;
+        });
 
-                // Поверка на маленький шаг, если он мелкий, тогда делаем дробь из нашего шага
-                if (yDataStep <= 10) {
+        // Шаги которые будут обьявлять количество блоков по Y и текст, который будет писаться возле линии
+        let yDataStep = yAxisDataOptions.step;
+        // Здесь будет хранится минимальное значение отсортированного массива, в случае отсутствия нуля, чтобы начинать отсчет шагов именно с него
+        let yDataMinStep = yAxisDataOptions.minStep;
+        // Создаем переменную yStepFactor, она нам нужна для цикла в функции отрисовки текста, проверяем нужен ли нам 0
+        let yStepFactor = yAxisDataOptions.stepFactor;
+        // Количество минусовых значений на графике по оси Y
+        let yDataMinusQuantity = yAxisDataOptions.minusValueQuantity;
+        // Обьявляем переменную, которая будет хранить количество блочков по оси Y
+        let yDataRectQuantity = yAxisDataOptions.rectQuantity;
+        // Формула по нахождению шага ( заключил в анонимную функцию. чтобы не сохранять промежуточную переменную)
+        ; (function () {
+            // Проверяем наличие минусовых значений ( Действия отличаются, если таковы присутствуют )
+            if (yDataSorted[0] >= 0) {
+                // Берем последнее число нашего отсортированного массива ( получается - самое большое число и делим его на 5)
+                let intermediateNumber = +yDataSorted[yDataSorted.length - 1] / 5;
+                /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
+                    наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
+                yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
+
+                // (1.1 Canvas Library) - Запихиваем проверку на ноль в блоки кода, которые выполняются взависимо от наличия минусовых значений
+                if (yDataSorted.indexOf('0') >= 0 || yDataSorted[0].split('')[0] === '-' || +yDataSorted[0] < yDataStep) {
+                    yStepFactor = 0;
+                } else {
+                    /* (1.1 Canvas Library) - Создаем промежуточную переменную, наш делитель и увеличиваем его на 1, пока он не станет
+                        равным или больше числа 5. Эта переменная нам будет нужна, чтобы уменьшить количество шагов, и соответственно 
+                        увеличить количество блоков и текста.
+                    */
+                    let dividerValue = 0;
+                    while (dividerValue <= 5) {
+                        dividerValue += 1;
+                    }
+
+                    yStepFactor = 1;
+
+                    // Поверка на маленький шаг, если он мелкий, тогда делаем дробь из нашего шага
+                    if (yDataStep <= 10) {
+                        // Старый вариант
+                        // yDataStep = yDataStep / dividerValue;
+                        yDataStep = +(yDataStep / dividerValue).toFixed(1);
+                    }
+
+                    // Если нуля нету, записываем наш минимальный шаг
+                    yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
                     // Старый вариант
-                    // yDataStep = yDataStep / dividerValue;
-                    yDataStep = +(yDataStep / dividerValue).toFixed(1);
+                    // yDataMinStep = Math.round(yDataMinStep);
+
+                    // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
+                    yDataRectQuantity--;
+                }
+                /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
+                    массива + один шаг, прибавляем количество наших блочков
+                    (1.1 Canvas Plugin) - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
+                    чтобы корректно отображалось правильное количество блоков
+                */
+                for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
+                    yDataRectQuantity++;
                 }
 
-                // Если нуля нету, записываем наш минимальный шаг
-                yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
-                // Старый вариант
-                // yDataMinStep = Math.round(yDataMinStep);
+                /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
+                    увеличиваем количество блоков еще на один 
+                    (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
+                    количества блоков)
+                */
+                if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
+                    yDataRectQuantity++
+                };
 
-                // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
-                yDataRectQuantity--;
+                /*  (1.2 CanvasPlugin): 
+                    1 - Удалена лишняя проверка.
+                    2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
+                    последнее отрисованное число на графике с помощью переменной yDataStep.
+                */
+                if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
+                    yDataRectQuantity++;
+                }
+
+            } else {
+                /*  Берем последнее число нашего отсортированного массива и прибавляем к нему 
+                    первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) 
+                */
+                let intermediateNumber = (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]) / 5;
+                /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
+                    наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
+                yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
+                // Считаем количество минусов до нолика, путем деления первого элемента на шаг, округляем к наибольшему значению
+                yDataMinusQuantity = Math.ceil(-yDataSorted[0] / +yDataStep);
+
+                /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
+                    массива + один шаг, прибавляем количество наших блочков*/
+                for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
+                    yDataRectQuantity++;
+                }
+
+                /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
+                    увеличиваем количество блоков еще на один */
+                if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
+                    yDataRectQuantity++;
+                };
+
+                // Проверка на то, что последнее плюсовое число не меньше последнего числа массива данных
+                // Отнимаем 1, чтобы не считать 0
+                let yDatapositiveBalance = (yDataRectQuantity - yDataMinusQuantity) - 1;
+                /* Если все умножить количество плюсовых чисел на шаг и результат будет меньше, чем последнее число 
+                массива данных, тогда увеличить количество чисел возле линии */
+                if (yDatapositiveBalance * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
+                    yDataRectQuantity++;
+                }
             }
-            /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
-                массива + один шаг, прибавляем количество наших блочков
-                (1.1 Canvas Plugin) - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
-                чтобы корректно отображалось правильное количество блоков
-            */
-            for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
-                yDataRectQuantity++;
-            }
+        })();
 
-            /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
-                увеличиваем количество блоков еще на один 
-                (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
-                количества блоков)
-            */
-            if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
-                yDataRectQuantity++
-            };
+        // Высота одного блока ( Делим высоту поля на количество блоков по Y - 1, потому что рисуется на один блок больше, чем текста)
+        // Присваиваем высоту свойству объекта, в котором хранятся настройки наших блоков
+        rectOptions.height = rectFieldOptions.height / (yDataRectQuantity - 1);
 
-            /*  (1.2 CanvasPlugin): 
-                1 - Удалена лишняя проверка.
-                2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
-                последнее отрисованное число на графике с помощью переменной yDataStep.
-            */
-            if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
-                yDataRectQuantity++;
-            }
-
-        } else {
-            /*  Берем последнее число нашего отсортированного массива и прибавляем к нему 
-                первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) 
-            */
-            let intermediateNumber = (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]) / 5;
-            /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
-                наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
-            yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
-            // Считаем количество минусов до нолика, путем деления первого элемента на шаг, округляем к наибольшему значению
-            yDataMinusQuantity = Math.ceil(-yDataSorted[0] / +yDataStep);
-
-            /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
-                массива + один шаг, прибавляем количество наших блочков*/
-            for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
-                yDataRectQuantity++;
-            }
-
-            /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
-                увеличиваем количество блоков еще на один */
-            if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
-                yDataRectQuantity++;
-            };
-
-            // Проверка на то, что последнее плюсовое число не меньше последнего числа массива данных
-            // Отнимаем 1, чтобы не считать 0
-            let yDatapositiveBalance = (yDataRectQuantity - yDataMinusQuantity) - 1;
-            /* Если все умножить количество плюсовых чисел на шаг и результат будет меньше, чем последнее число 
-            массива данных, тогда увеличить количество чисел возле линии */
-            if (yDatapositiveBalance * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
-                yDataRectQuantity++;
-            }
-        }
+        // Схораняем новые значения в наш ранее созданный объект
+        // Шаги которые будут обьявлять количество блоков по Y и текст, который будет писаться возле линии
+        yAxisDataOptions.step = yDataStep;
+        // Здесь будет хранится минимальное значение отсортированного массива, в случае отсутствия нуля, чтобы начинать отсчет шагов именно с него
+        yAxisDataOptions.minStep = yDataMinStep;
+        // Создаем переменную yStepFactor, она нам нужна для цикла в функции отрисовки текста, проверяем нужен ли нам 0
+        yAxisDataOptions.stepFactor = yStepFactor;
+        // Количество минусовых значений на графике по оси Y
+        yAxisDataOptions.minusValueQuantity = yDataMinusQuantity;
+        // Обьявляем переменную, которая будет хранить количество блочков по оси Y
+        yAxisDataOptions.rectQuantity = yDataRectQuantity;
+        // Отсортированный массив данных
+        yAxisDataOptions.sortedData = yDataSorted;
     })();
 
-    // Высота одного блока ( Делим высоту поля на количество блоков по Y - 1, потому что рисуется на один блок больше, чем текста)
-    let rectHeight = rectFieldHeight / (yDataRectQuantity - 1);
-
-
     /* -------- Настройка блоков по оси X -------- */
-    // Помещяем информацию для линии по оси X
-    let xDataOriginal = options.data.xData;
-    let xDataSorted = options.data.xData;
-    // Оригинальное количество значений в массиве данных по оси X, до всяких изменений
-    let xDataRectQuantityOriginal = options.data.xData.length || 0;
-    // Количество блоков по оси X
-    let xDataRectQuantity = options.data.xData.length || 0;
-    // Ширина одного блока ( Делим ширину поля на колчество блоков по X - 1, потому что рисуется на один блок больше, чем текста)
-    let rectWidth = rectFieldWidth / (xDataRectQuantity - 1);
-    // Ограничения, при котором массив данных для оси X выводится через один элемент
-    let xDataConfineValue = 50;
 
-    // Если данных по оси X слишком много, тогда выводим их через раз ( сжимаем ) для большей красоты отрисовки
-    if (xDataRectQuantityOriginal > xDataConfineValue) {
-        xDataSorted = xDataSorted.filter(function (currentData, currentDataIndex) {
-            return currentDataIndex % 2 == 0;
-        });
-        xDataRectQuantity = xDataSorted.length;
-        rectWidth = rectFieldWidth / (xDataRectQuantity - 1);
-    }
+    let xAxisDataOptions = {
+        // Помещяем информацию для линии по оси X
+        originalData: options.data.xData,
+        sortedData: options.data.xData,
+        // Оригинальное количество значений в массиве данных по оси X, до всяких изменений
+        originalRectQuantity: options.data.xData.length || 0,
+        // Количество блоков по оси X
+        rectQuantity: options.data.xData.length || 0,
+        // Ограничения, при котором массив данных для оси X выводится через один элемент
+        confineValue: 50,
+    };
+
+    // Помещаем это все в анонимную функцию, чтобы не обьявлять переменные в глобальной области видимости класса
+    ; (function () {
+        // Помещаем информацию для линии по оси X
+        let xDataSorted = xAxisDataOptions.sortedData;
+        // Оригинальное количество значений в массиве данных по оси X, до всяких изменений
+        let xDataRectQuantityOriginal = xAxisDataOptions.originalRectQuantity;
+        // Количество блоков по оси X
+        let xDataRectQuantity = xAxisDataOptions.rectQuantity;
+        // Ограничения, при котором массив данных для оси X выводится через один элемент
+        let xDataConfineValue = xAxisDataOptions.confineValue;
+
+        // Ширина одного блока ( Делим ширину поля на колчество блоков по X - 1, потому что рисуется на один блок больше, чем текста)
+        // Так как мы теперь узнали количество блоков по оси X, добвляем ширину в наш объект
+        rectOptions.width = rectFieldOptions.width / (xDataRectQuantity - 1);
+
+        // Если данных по оси X слишком много, тогда выводим их через раз ( сжимаем ) для большей красоты отрисовки
+        if (xDataRectQuantityOriginal > xDataConfineValue) {
+            xDataSorted = xDataSorted.filter(function (currentData, currentDataIndex) {
+                return currentDataIndex % 2 == 0;
+            });
+            xDataRectQuantity = xDataSorted.length;
+            rectOptions.width = rectFieldOptions.width / (xDataRectQuantity - 1);
+        }
+
+        // Обновляем данные в нашем объекте
+        xAxisDataOptions.originalRectQuantity = xDataRectQuantityOriginal;
+        xAxisDataOptions.sortedData = xDataSorted;
+        xAxisDataOptions.rectQuantity = xDataRectQuantity;
+        xAxisDataOptions.confineValue = xDataConfineValue;
+    })();
 
 
     /* -------- Настройка текста -------- */
-    let chartFontOptions = options.fontOptions || {
-        chartFontSize: 12,
-        chartFontFamily: 'Arial',
-        chartFontColor: 'grey'
+    let chartFontOptions = options.globalFontOptions || {
+        fontSize: 12,
+        fontFamily: 'Arial',
+        fontColor: 'grey'
     };
 
 
@@ -199,8 +276,13 @@ export let lineChart = function (ctx, options) {
         containerWidth: 120,
         containerHeight: 50,
         containerRadius: 10,
-        containerFillColor: "rgba(0, 0, 0, 0.8)"
+        containerFillColor: "rgba(0, 0, 0, 0.8)",
     }
+
+    // (Line Chart Canvas Library 1.3) - Обьявляем приватные свойства в ранее созданном обьекте для большей гибкости работы с этими данными
+    infoContainerOptions.containerWidth = 140;
+    infoContainerOptions.containerHeight = 45;
+    infoContainerOptions.triangleWidth = 7;
 
     let infoContainerFontOptions = options.infoContainerFontOptions || chartFontOptions;
 
@@ -229,11 +311,10 @@ export let lineChart = function (ctx, options) {
         и линий) 
     */
     function draw(xCoordsChartLines, yCoordsChartLines) {
-        drawBlocks(ctx, rectHeight, rectWidth, yDataRectQuantity, xDataRectQuantity, rectLineWidth, rectBorderColor);
-        drawYLineText(ctx, rectHeight, yDataStep, yStepFactor, yDataMinusQuantity, yDataRectQuantity, chartFontOptions);
-        drawXLineText(ctx, xDataSorted, rectWidth, xDataRectQuantity, chartFontOptions);
-        drawChartLines(ctx, yDataOriginal, rectWidth, rectHeight, xDataRectQuantityOriginal, xDataRectQuantity, yDataRectQuantity, chartLineOptions, xCoordsChartLines, yCoordsChartLines);
-        drawChartInfoContainer(ctx, 25, 55, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
+        drawBlocks(ctx, rectFieldOptions, rectOptions, yAxisDataOptions.rectQuantity, xAxisDataOptions.rectQuantity);
+        drawYLineText(ctx, rectFieldOptions, rectOptions, yAxisDataOptions, chartFontOptions);
+        drawXLineText(ctx, rectFieldOptions, rectOptions, xAxisDataOptions, chartFontOptions);
+        drawChartLines(ctx, rectFieldOptions, rectOptions, xAxisDataOptions, yAxisDataOptions, chartLineOptions, xCoordsChartLines, yCoordsChartLines);
     }
 
 
@@ -243,33 +324,48 @@ export let lineChart = function (ctx, options) {
     // Функция, которая рисует Блоки
     function drawBlocks(
         ctx, // Контекст холста
-        rectHeight, // Высота блока
-        rectWidth, // Ширина блока
+        rectFieldOptions, // Настройки поля
+        // Передаем объект с настройками блоков
+        {
+            height, // Высота блока
+            width, // Ширина блока
+            lineWidth, // Ширина границ блоков и всего графика
+            borderColor // Цвет границ блоков
+
+        },
         yDataRectQuantity, // Количество блоков по оси Y
         xDataRectQuantity, // Количество блоков по оси X
-        rectLineWidth, // Ширина границ блоков и всего графика
-        rectBorderColor // Цвет границ блоков
     ) {
         ctx.beginPath();
         // Ставим по умолчанию темный цвет линий главных осей
         ctx.strokeStyle = '#000';
         // Ширина границ блоков
-        ctx.lineWidth = rectLineWidth;
+        ctx.lineWidth = lineWidth;
         // Y Линия
-        ctx.moveTo(fieldXStartPos, fieldYStartPos);
-        ctx.lineTo(fieldXStartPos, rectFieldHeight + fieldYStartPos);
+        drawStraightLine(
+            ctx,
+            rectFieldOptions.xStartPos,
+            rectFieldOptions.xStartPos,
+            rectFieldOptions.xStartPos,
+            rectFieldOptions.height + rectFieldOptions.xStartPos
+        );
         // X Линия
-        ctx.moveTo(fieldXStartPos, rectFieldHeight + fieldYStartPos);
-        ctx.lineTo(rectFieldWidth + fieldXStartPos, rectFieldHeight + fieldYStartPos);
+        drawStraightLine(
+            ctx,
+            rectFieldOptions.xStartPos,
+            rectFieldOptions.height + rectFieldOptions.xStartPos,
+            rectFieldOptions.width + rectFieldOptions.xStartPos,
+            rectFieldOptions.height + rectFieldOptions.xStartPos
+        );
         ctx.stroke();
         // Цвет границы блока
-        ctx.strokeStyle = rectBorderColor;
+        ctx.strokeStyle = borderColor;
 
         /* Проходимся по количеству блоков по осям X и Y, отнимаем от количеств еденицу, чтобы
             не рисовалось на одну линию блоков больше. */
         for (let i = 0; i < yDataRectQuantity - 1; i++) {
             for (let j = 0; j < xDataRectQuantity - 1; j++) {
-                ctx.strokeRect(fieldXStartPos + j * rectWidth, fieldYStartPos + i * rectHeight, rectWidth, rectHeight)
+                ctx.strokeRect(rectFieldOptions.xStartPos + j * width, rectFieldOptions.xStartPos + i * height, width, height)
             }
         }
     }
@@ -278,50 +374,65 @@ export let lineChart = function (ctx, options) {
     // Функция рисует текст по оси Y
     function drawYLineText(
         ctx, // Контекст холста
-        rectHeight, // Высота блока
-        yDataStep, // Шаг по оси Y
-        yStepFactor, // Множитель шага, когда минусовых значений не осталось по оси Y
-        yDataMinusQuantity, // Количество минусовых значений
-        yDataRectQuantity, // Количество блоков по оси Y
+        rectFieldOptions, // Настройки поля
+        { height }, // Высота блока
+        // Объект с настройками данных по оси Y
+        {
+            step, // Шаг по оси Y
+            stepFactor, // Множитель шага, когда минусовых значений не осталось по оси Y
+            minusValueQuantity, // Количество минусовых значений
+            rectQuantity, // Количество блоков по оси Y
+            minStep // Начальное значение, если нет нуля
+        },
         chartFontOptions // Настройки шрифтов в объекте
     ) {
         ctx.beginPath();
 
         // Настройки текста
-        editText(chartFontOptions.chartFontSize, chartFontOptions.chartFontFamily, chartFontOptions.chartFontColor, "center", "middle");
+        editText(chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
 
         // Сохраняем наличие минусовых значений для отрисовки дополнительной линии на отметке 0, если она будет
-        let haveMinusQuantity = !!yDataMinusQuantity;
+        let haveMinusQuantity = !!minusValueQuantity;
 
         /* Тут проходимся по циклу, пока i меньше чем количество блоков по оси Y, делаем проверку на наличие количества минусов 
-            в переменноу yDataMinusQuantity, если оно больше 0, тогда шаг умножаем на это количество и выводим цифры, с каждой 
+            в переменноу minusValueQuantity, если оно больше 0, тогда шаг умножаем на это количество и выводим цифры, с каждой 
             итерацией отнимаем наше количество минусов.
-            Если количество равно или меньше 0 - тогда берем нашу переменную yStepFactor и умножаем на шаг, это делается для того, чтобы 
+            Если количество равно или меньше 0 - тогда берем нашу переменную stepFactor и умножаем на шаг, это делается для того, чтобы 
             можно было вывеcти 0 не задев переменную i, потому что она нам нужна для контроля позиции текста */
-        for (let i = 0; i < yDataRectQuantity; i++) {
+        for (let i = 0; i < rectQuantity; i++) {
             // Сразу рисуем черточки возле текста
-            ctx.moveTo(fieldXStartPos, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
-            ctx.lineTo(fieldXStartPos - 10, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
+            drawStraightLine(
+                ctx,
+                rectFieldOptions.xStartPos,
+                (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i,
+                rectFieldOptions.xStartPos - 10,
+                (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i
+            );
             ctx.stroke();
 
-            if (yDataMinusQuantity > 0) {
-                ctx.fillText('-' + yDataStep * yDataMinusQuantity, fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i)
-                yDataMinusQuantity--;
+            if (minusValueQuantity > 0) {
+                ctx.fillText('-' + step * minusValueQuantity, rectFieldOptions.xStartPos - 25, (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i)
+                minusValueQuantity--;
             } else {
                 // Если сейчас отрисовывается нолик, тогда рисуем поверх дополнительную линию, чтобы она выделялась
-                if (yStepFactor === 0 && haveMinusQuantity) {
-                    ctx.moveTo(fieldXStartPos, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
-                    ctx.lineTo(fieldXStartPos + rectFieldWidth, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
+                if (stepFactor === 0 && haveMinusQuantity) {
+                    drawStraightLine(
+                        ctx,
+                        rectFieldOptions.xStartPos,
+                        (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i,
+                        rectFieldOptions.xStartPos + rectFieldOptions.width,
+                        (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i
+                    )
                 }
-                /*  (1.1 Canvas Library) - к нулю прибавляем еще нашу новую переменную yDataMinStep, чтобы если нет 0 - отрисовка текста начиналась с минимального шага
+                /*  (1.1 Canvas Library) - к нулю прибавляем еще нашу новую переменную minStep, чтобы если нет 0 - отрисовка текста начиналась с минимального шага
                     (1.2 Canvas Library):
-                    1 - Дополнительное умножения на 10 переменных: yDataMinStep, (yDataStep * yStepFactor).
+                    1 - Дополнительное умножения на 10 переменных: minStep, (step * stepFactor).
                     2 - Деление числа, которые получилось в итоге на 10, чтобы вернуть дробную часть, если они есть
                     3 - Сделано это все из-за того, что арифметические операции с числами 0.1, 0.2 и 0.3 выполняются некорректно и
                     выводятся числа с большими дробями, поэтому мы их все перемножаем на 10,а потом разделяем. 
                 */
-                ctx.fillText(((0 + (yDataMinStep * 10) + ((yDataStep * yStepFactor) * 10)) / 10), fieldXStartPos - 25, (rectFieldHeight + fieldYStartPos) - rectHeight * i);
-                yStepFactor++;
+                ctx.fillText(((0 + (minStep * 10) + ((step * stepFactor) * 10)) / 10), rectFieldOptions.xStartPos - 25, (rectFieldOptions.height + rectFieldOptions.yStartPos) - height * i);
+                stepFactor++;
             }
         }
     }
@@ -330,33 +441,41 @@ export let lineChart = function (ctx, options) {
     // Функция, которая рисует текст по оси X
     function drawXLineText(
         ctx, // Контекст холста
-        xDataSorted, // Информация для лнии по оси X ( Отсортированная )
-        rectWidth, // Ширина блока
-        xDataRectQuantity, // Количество блоков по оси X
+        rectFieldOptions, // Настройки поля
+        { width }, // Ширина блока
+        {
+            sortedData, // Информация для лнии по оси X ( Отсортированная )
+            rectQuantity, // Ширина блока
+        },
         chartFontOptions // Настройки шрифтов в объекте
     ) {
         ctx.beginPath();
 
         // Настройки текста
-        editText(chartFontOptions.chartFontSize, chartFontOptions.chartFontFamily, chartFontOptions.chartFontColor, "center", "middle");
+        editText(chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
 
         /* Проходимся по количеству блоков по оси X, если это количество меньше за 20 - рисуем текст обычно, горизонтально,
             если количество переваливает за 20, тогда делаем фишку с translate, чтобы повернуть текст и слелать его компактнее */
-        for (let i = 0; i < xDataRectQuantity; i++) {
+        for (let i = 0; i < rectQuantity; i++) {
             // Сразу рисуем черточки возле текста
-            ctx.moveTo(fieldXStartPos + rectWidth * i, (rectFieldHeight + fieldYStartPos));
-            ctx.lineTo(fieldXStartPos + rectWidth * i, (rectFieldHeight + fieldYStartPos) + 10);
+            drawStraightLine(
+                ctx,
+                rectFieldOptions.xStartPos + width * i,
+                (rectFieldOptions.height + rectFieldOptions.yStartPos),
+                rectFieldOptions.xStartPos + width * i,
+                (rectFieldOptions.height + rectFieldOptions.yStartPos) + 10
+            )
             ctx.stroke();
 
-            if (xDataRectQuantity < 20) {
-                ctx.fillText(xDataSorted[i], fieldXStartPos + rectWidth * i, (rectFieldHeight + fieldYStartPos) + 25);
+            if (rectQuantity < 20) {
+                ctx.fillText(sortedData[i], rectFieldOptions.xStartPos + width * i, (rectFieldOptions.height + rectFieldOptions.yStartPos) + 25);
             } else {
                 ctx.save();
-                ctx.translate(fieldXStartPos + rectWidth * i - 15, (rectFieldHeight + fieldYStartPos) + 25);
+                ctx.translate(rectFieldOptions.xStartPos + width * i - 15, (rectFieldOptions.height + rectFieldOptions.yStartPos) + 25);
                 ctx.rotate(-Math.PI / 4);
-                ctx.translate(-(fieldXStartPos + rectWidth * i - 15), -((rectFieldHeight + fieldYStartPos) + 25));
+                ctx.translate(-(rectFieldOptions.xStartPos + width * i - 15), -((rectFieldOptions.height + rectFieldOptions.yStartPos) + 25));
                 ctx.textAlign = 'center';
-                ctx.fillText(xDataSorted[i], fieldXStartPos + rectWidth * i - 15, (rectFieldHeight + fieldYStartPos) + 25);
+                ctx.fillText(sortedData[i], rectFieldOptions.xStartPos + width * i - 15, (rectFieldOptions.height + rectFieldOptions.yStartPos) + 25);
                 ctx.restore();
             }
         }
@@ -366,21 +485,43 @@ export let lineChart = function (ctx, options) {
     // Функция которая рисует сами линии графика
     function drawChartLines(
         ctx, // Контекст холста
-        yDataOriginal, // Информация по оси Y ( оригинальная, не сортированная )
-        rectWidth, // Ширина блока
-        rectHeight, // Высота блока
-        xDataRectQuantityOriginal, // Оригинальное количество значений в массиве данных по оси X
-        xDataRectQuantity, // Количество блоков по оси X
-        yDataRectQuantity, // Количество блоков по оси Y
+        rectFieldOptions, // Настройки поля, где находится график
+        rectOptions, // Настройки блоков
+        xAxisDataOptions, // Настройки данных по оси X
+        yAxisDataOptions, // Настройки данных по оси Y
         lineOptions, // Обьект с настройками стилей линии
         xCoords, // Координаты мышки по x
         yCoords // Координаты мышки по y
     ) {
         // Создание переменных для настройки линий
-        let arcRadius = lineOptions.arcRadius || 3,
-            hoverArcRadius = lineOptions.hoverArcRadius / 2 || arcRadius + 2,
-            lineWidth = lineOptions.lineWidth || 3.5,
-            lineColor = lineOptions.lineColor || '#61AAC7';
+        let arcRadius = lineOptions.arcRadius,
+            hoverArcRadius = lineOptions.hoverArcRadius / 2,
+            lineWidth = lineOptions.lineWidth,
+            lineColor = lineOptions.lineColor;
+
+        // Распределяем по переменным информацию объектов с опциями
+        let rectWidth = rectOptions.width,
+            rectHeight = rectOptions.height;
+
+        let xDataRectQuantityOriginal = xAxisDataOptions.originalRectQuantity,
+            xDataRectQuantity = xAxisDataOptions.rectQuantity,
+            xDataConfineValue = xAxisDataOptions.confineValue;
+
+        let yDataOriginal = yAxisDataOptions.originalData[0],
+            yDataSorted = yAxisDataOptions.sortedData,
+            yDataRectQuantity = yAxisDataOptions.rectQuantity,
+            yDataStep = yAxisDataOptions.step,
+            yStepFactor = yAxisDataOptions.stepFactor,
+            yDataMinusQuantity = yAxisDataOptions.minusValueQuantity,
+            yDataName = yAxisDataOptions.dataName;
+
+        let rectFieldHeight = rectFieldOptions.height,
+            rectFieldWidth = rectFieldOptions.width,
+            fieldXStartPos = rectFieldOptions.xStartPos,
+            fieldYStartPos = rectFieldOptions.yStartPos;
+
+        // (Line Chart Canvas Library 1.3) - Создаем переменную, в которую будем помещать координаты точки, на которую попала мышка
+        let coordinatesForChartInfoContainer = {};
 
 
         ctx.beginPath();
@@ -432,6 +573,15 @@ export let lineChart = function (ctx, options) {
                 if (xCoords >= circleUpLeftPointX && xCoords <= circleDownRightPointX && yCoords >= circleUpLeftPointY
                     && yCoords <= circleDownRightPointY) {
                     ctx.arc((fieldXStartPos + rectWidth * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue, arcRadius + hoverArcRadius, 0, 2 * Math.PI);
+
+                    /* (Line Chart Canvas Library 1.3):
+                        1 - Если попали по кружочку - сразу ловим ее координаты и записываем в переменную для подальшей
+                        передачи в функцию отрисовки контейнера.
+                    */
+                    coordinatesForChartInfoContainer = {
+                        x: (fieldXStartPos + rectWidth * i),
+                        y: (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue
+                    };
                 } else {
                     ctx.arc((fieldXStartPos + rectWidth * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue, arcRadius, 0, 2 * Math.PI);
                 }
@@ -439,8 +589,13 @@ export let lineChart = function (ctx, options) {
                 // Проверка на то, чтобы i не вылезла за пределы, чтобы не отрисовывалась лишняя линяя за пределами поля графика
                 if (i + 1 < xDataRectQuantity) {
                     // Рисуем линии, которые соединяют эти круги
-                    ctx.moveTo((fieldXStartPos + rectWidth * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue);
-                    ctx.lineTo(fieldXStartPos + rectWidth * (i + 1), (rectFieldHeight + fieldYStartPos) - futureHeightFindFormula - moveUpValue + moveDownValue);
+                    drawStraightLine(
+                        ctx,
+                        (fieldXStartPos + rectWidth * i),
+                        (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue,
+                        fieldXStartPos + rectWidth * (i + 1),
+                        (rectFieldHeight + fieldYStartPos) - futureHeightFindFormula - moveUpValue + moveDownValue
+                    )
                 }
             }
         } else {
@@ -469,19 +624,56 @@ export let lineChart = function (ctx, options) {
                 if (xCoords >= circleUpLeftPointX && xCoords <= circleDownRightPointX && yCoords >= circleUpLeftPointY
                     && yCoords <= circleDownRightPointY) {
                     ctx.arc((fieldXStartPos + rectWidth / 2 * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue, arcRadius + hoverArcRadius, 0, 2 * Math.PI);
+
+                    coordinatesForChartInfoContainer = {
+                        x: (fieldXStartPos + rectWidth / 2 * i),
+                        y: (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue
+                    };
                 } else {
                     ctx.arc((fieldXStartPos + rectWidth / 2 * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue, arcRadius, 0, 2 * Math.PI);
                 }
 
                 if (i + 1 < xDataRectQuantityOriginal - 1) {
-                    ctx.moveTo((fieldXStartPos + rectWidth / 2 * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue);
-                    ctx.lineTo(fieldXStartPos + rectWidth / 2 * (i + 1), (rectFieldHeight + fieldYStartPos) - futureHeightFindFormula - moveUpValue + moveDownValue);
+                    drawStraightLine(
+                        ctx,
+                        (fieldXStartPos + rectWidth / 2 * i),
+                        (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue,
+                        fieldXStartPos + rectWidth / 2 * (i + 1),
+                        (rectFieldHeight + fieldYStartPos) - futureHeightFindFormula - moveUpValue + moveDownValue
+                    )
                 }
-
             }
         }
         ctx.stroke();
         ctx.fill();
+
+        // (Line Chart Canvas Library 1.3) - Проверяем или словили мы координаты во время очередной прорисовки графика.
+        if (coordinatesForChartInfoContainer != undefined) {
+
+            // (Line Chart Canvas Library 1.3) - Если словили координаты, тогда рисуем контейнер и передаем туда два свойства с координатами X и Y
+
+            // (Line Chart Canvas Library 1.3) - Проверяем на какой половине графика мы словили наведение на круг, чтобы узнать с какой стороны отрисовывать контейнер
+            if (coordinatesForChartInfoContainer.x < rectFieldWidth / 2) {
+                /* (Line Chart Canvas Library 1.3):
+                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
+                    2 - .
+                */
+                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
+                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
+
+                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
+            } else {
+                /* (Line Chart Canvas Library 1.3):
+                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
+                    2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
+                    деленой на 2 контейнера.
+                */
+                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
+                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
+
+                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
+            }
+        }
     }
 
 
@@ -490,15 +682,15 @@ export let lineChart = function (ctx, options) {
         ctx, // Контекст холста
         xContainerCoord, // Координата начала контейнера по оси X
         yContainerCoord, // Координата начала контейнера по оси Y
-        infoContainerOptions,
-        infoContainerFontOptions,
-        lineColor,
-        yDataNames
+        infoContainerOptions, // Радиус и цвет заливки контейнера
+        infoContainerFontOptions, // Настройки шрифтов используемых в контейнере
+        lineColor, // Цвет линии
+        yDataNames // Имя данных
     ) {
         // Настройки текста
-        let infoContainerFontSize = infoContainerFontOptions.infoContainerFontSize,
-            infoContainerFontFamily = infoContainerFontOptions.infoContainerFontFamily,
-            infoContainerFontColor = infoContainerFontOptions.infoContainerFontColor;
+        let fontSize = infoContainerFontOptions.fontSize,
+            fontFamily = infoContainerFontOptions.fontFamily,
+            fontColor = infoContainerFontOptions.fontColor;
 
         // Настройки маркеров данных ( квадратиков с цветами данных )
         let dataMarkerWidth = 13,
@@ -506,8 +698,8 @@ export let lineChart = function (ctx, options) {
             dataMarkerColor = lineColor;
 
         // Статичные настройки контейнера
-        let containerWidth = 120,
-            containerHeight = 45,
+        let containerWidth = infoContainerOptions.containerWidth,
+            containerHeight = infoContainerOptions.containerHeight,
             containerRadius = infoContainerOptions.containerRadius,
             containerFillColor = infoContainerOptions.containerFillColor;
 
@@ -522,7 +714,7 @@ export let lineChart = function (ctx, options) {
         ctx.fill();
 
         // Настройки текста
-        editText(infoContainerFontSize, infoContainerFontFamily, infoContainerFontColor, "left", "", "bold");
+        editText(fontSize, fontFamily, fontColor, "left", "", "bold");
 
         // Сохраняем стили для текста
         ctx.save();
@@ -539,7 +731,7 @@ export let lineChart = function (ctx, options) {
         ctx.restore();
 
         // Рисуем текст, который связан с нарисованным текстом по оси X, убраем жирный шрифт
-        editText(infoContainerFontSize, infoContainerFontFamily);
+        editText(fontSize, fontFamily);
 
         ctx.fillText(yDataNames + ':', xContainerCoord + dataMarkerWidth + 3, yContainerCoord + 33);
 
@@ -583,8 +775,8 @@ export let lineChart = function (ctx, options) {
 
         // Проверяем нужен ли треугольник
         if (withTriangle) {
-            // Настройка треугольника
-            let triangleWidth = 7,
+            // Настройка треугольника ( Вывели значение ширины в начало класса, чтобы с этим значением можно было работать за границами этой функции)
+            let triangleWidth = infoContainerOptions.triangleWidth,
                 triangleHeight = 13;
 
             // Рисуем треугольник
@@ -593,6 +785,12 @@ export let lineChart = function (ctx, options) {
             ctx.lineTo(xStart + rectWidth, (yStart + rectHeight / 2 - triangleHeight / 2) + triangleHeight);
         }
     };
+
+    // Функция для рисования прямы линий
+    function drawStraightLine(ctx, xStart, yStart, xEnd, yEnd) {
+        ctx.moveTo(xStart, yStart);
+        ctx.lineTo(xEnd, yEnd);
+    }
 
     // Функция для настройки текста
     function editText(
@@ -608,7 +806,6 @@ export let lineChart = function (ctx, options) {
         ctx.textAlign = fontAlign;
         ctx.textBaseline = fontBaseline;
     }
-
 
     // ----- Присваиваем публичные функции ----- 
     this.draw = draw;
