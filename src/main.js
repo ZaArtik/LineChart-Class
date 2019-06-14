@@ -3,7 +3,7 @@ import './scss/style.scss';
 
 // Custom modules
 import { article1 } from './data/temperature.js';
-import { lineChart } from './classes/lineChart-Class.js';
+import { LineChart } from './classes/lineChart-Class.js';
 
 // Libraries
 
@@ -64,7 +64,7 @@ if (canvas.getContext) {
         }
     }
 
-    let newLineChart = new lineChart(ctx, options);
+    let newLineChart = new LineChart(ctx, options);
     newLineChart.draw();
 }
 

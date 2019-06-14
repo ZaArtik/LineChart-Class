@@ -1,0 +1,4 @@
+// class
+export class LineChart {
+    
+}

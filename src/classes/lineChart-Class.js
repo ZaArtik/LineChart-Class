@@ -1,5 +1,13 @@
+// Подключаем воспомагательные функции
+import { editText } from './helperFunctions/editText'; // Функция для настраивания стилей текста
+import { getUniqueValues } from './helperFunctions/getUniqueValues'; // Функция для выборки уникальных значений массива
+import { drawStraightLine } from './helperFunctions/drawStraightLine'; // Функция для рисования прямой линии
+import { drawRoundedRect } from './helperFunctions/drawRoundedRect'; // Функция для рисования прямоугольника и с закругленными углами
+
+
+
 // Class
-export let lineChart = function (ctx, options) {
+export let LineChart = function (ctx, options) {
     /* ------------- ПРИВАТНЫЕ СВОЙСТВА ------------- */
 
 
@@ -389,7 +397,7 @@ export let lineChart = function (ctx, options) {
         ctx.beginPath();
 
         // Настройки текста
-        editText(chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
+        editText(ctx, chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
 
         // Сохраняем наличие минусовых значений для отрисовки дополнительной линии на отметке 0, если она будет
         let haveMinusQuantity = !!minusValueQuantity;
@@ -452,7 +460,7 @@ export let lineChart = function (ctx, options) {
         ctx.beginPath();
 
         // Настройки текста
-        editText(chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
+        editText(ctx, chartFontOptions.fontSize, chartFontOptions.fontFamily, chartFontOptions.fontColor, "center", "middle");
 
         /* Проходимся по количеству блоков по оси X, если это количество меньше за 20 - рисуем текст обычно, горизонтально,
             если количество переваливает за 20, тогда делаем фишку с translate, чтобы повернуть текст и слелать его компактнее */
@@ -701,20 +709,21 @@ export let lineChart = function (ctx, options) {
         let containerWidth = infoContainerOptions.containerWidth,
             containerHeight = infoContainerOptions.containerHeight,
             containerRadius = infoContainerOptions.containerRadius,
-            containerFillColor = infoContainerOptions.containerFillColor;
+            containerFillColor = infoContainerOptions.containerFillColor,
+            triangleWidth = infoContainerOptions.triangleWidth;
 
         // Начинаем рисовать
         ctx.beginPath();
         ctx.fillStyle = containerFillColor;
 
         // Используем созданную нами функцию для рисования прямоугольников с закругленными углами
-        drawRoundedRect(xContainerCoord, yContainerCoord, containerWidth, containerHeight, containerRadius, true);
+        drawRoundedRect(ctx, xContainerCoord, yContainerCoord, containerWidth, containerHeight, containerRadius, triangleWidth, true);
 
         // Заливаем его
         ctx.fill();
 
         // Настройки текста
-        editText(fontSize, fontFamily, fontColor, "left", "", "bold");
+        editText(ctx, fontSize, fontFamily, fontColor, "left", "", "bold");
 
         // Сохраняем стили для текста
         ctx.save();
@@ -725,88 +734,20 @@ export let lineChart = function (ctx, options) {
 
         // Рисуем квадратик с цветом наших данных, по которым чертятся линии
         ctx.fillStyle = dataMarkerColor;
-        drawRoundedRect(xContainerCoord, (yContainerCoord + 32) - dataMarkerWidth / 2, dataMarkerWidth, dataMarkerHeight, 0, false);
+        drawRoundedRect(ctx, xContainerCoord, (yContainerCoord + 32) - dataMarkerWidth / 2, dataMarkerWidth, dataMarkerHeight, 0, triangleWidth, false);
         ctx.fill();
         // Откатываемся до последнего сохранения, чтобы поставить правильные стили для текста
         ctx.restore();
 
         // Рисуем текст, который связан с нарисованным текстом по оси X, убраем жирный шрифт
-        editText(fontSize, fontFamily);
+        editText(ctx, fontSize, fontFamily);
 
         ctx.fillText(yDataNames + ':', xContainerCoord + dataMarkerWidth + 3, yContainerCoord + 33);
 
     };
 
 
-
-    /* ------------- Приватные воспомогательные функции ------------- */
-
-    // Функция для выборки только уникальных значений из массива
-    function getUniqueValues(arr) {
-        let obj = {};
-
-        arr.forEach(function (currentValue, currentIndex) {
-            obj[currentValue] = true;
-        });
-
-        return Object.keys(obj);
-    }
-
-    // Функция для рисования прямоугольника с закругленными углами
-    function drawRoundedRect(
-        xStart, // Начало координат X
-        yStart, // Начало координат Y
-        rectWidth, // Ширина прямоугольника
-        rectHeight, // Высота прямоугольника
-        radius, // Радиус окружности углов
-        withTriangle // Булевый параметр, который добавляет наличие треугольника
-    ) {
-        ctx.beginPath();
-
-        ctx.moveTo(xStart, yStart);
-        ctx.lineTo(xStart + rectWidth - radius, yStart);
-        ctx.quadraticCurveTo(xStart + rectWidth, yStart, xStart + rectWidth, yStart + radius);
-        ctx.lineTo(xStart + rectWidth, yStart + rectHeight - radius);
-        ctx.quadraticCurveTo(xStart + rectWidth, yStart + rectHeight, xStart + rectWidth - radius, yStart + rectHeight);
-        ctx.lineTo(xStart, yStart + rectHeight);
-        ctx.quadraticCurveTo(xStart - radius, yStart + rectHeight, xStart - radius, yStart + rectHeight - radius);
-        ctx.lineTo(xStart - radius, yStart + radius);
-        ctx.quadraticCurveTo(xStart - radius, yStart, xStart, yStart);
-
-        // Проверяем нужен ли треугольник
-        if (withTriangle) {
-            // Настройка треугольника ( Вывели значение ширины в начало класса, чтобы с этим значением можно было работать за границами этой функции)
-            let triangleWidth = infoContainerOptions.triangleWidth,
-                triangleHeight = 13;
-
-            // Рисуем треугольник
-            ctx.moveTo(xStart + rectWidth, yStart + rectHeight / 2 - triangleHeight / 2);
-            ctx.lineTo(xStart + rectWidth + triangleWidth, (yStart + rectHeight / 2 - triangleHeight / 2) + triangleHeight / 2);
-            ctx.lineTo(xStart + rectWidth, (yStart + rectHeight / 2 - triangleHeight / 2) + triangleHeight);
-        }
-    };
-
-    // Функция для рисования прямы линий
-    function drawStraightLine(ctx, xStart, yStart, xEnd, yEnd) {
-        ctx.moveTo(xStart, yStart);
-        ctx.lineTo(xEnd, yEnd);
-    }
-
-    // Функция для настройки текста
-    function editText(
-        fontSize,
-        fontFamily,
-        fontColor,
-        fontAlign = '',
-        fontBaseline = '',
-        fontBold = 'normal'
-    ) {
-        ctx.font = fontBold + ' ' + fontSize + 'px ' + fontFamily;
-        ctx.fillStyle = fontColor;
-        ctx.textAlign = fontAlign;
-        ctx.textBaseline = fontBaseline;
-    }
-
     // ----- Присваиваем публичные функции ----- 
     this.draw = draw;
 }
+
