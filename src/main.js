@@ -68,7 +68,6 @@ if (canvas.getContext) {
     newLineChart.draw();
 }
 
-let kekFunc = () => 5;
 
 
 

@@ -3,7 +3,7 @@ import { editText } from './helperFunctions/editText'; // Функция для 
 import { getUniqueValues } from './helperFunctions/getUniqueValues'; // Функция для выборки уникальных значений массива
 import { drawStraightLine } from './helperFunctions/drawStraightLine'; // Функция для рисования прямой линии
 import { drawRoundedRect } from './helperFunctions/drawRoundedRect'; // Функция для рисования прямоугольника и с закругленными углами
-
+import { drawTriangle } from './helperFunctions/drawTriangle'; // Функция для рисования треугольника
 
 
 // Class
@@ -281,8 +281,8 @@ export let LineChart = function (ctx, options) {
 
     /* -------- Настройка контейнера с информацией -------- */
     let infoContainerOptions = options.infoContainerOptions || {
-        containerWidth: 120,
-        containerHeight: 50,
+        containerWidth: 140,
+        containerHeight: 45,
         containerRadius: 10,
         containerFillColor: "rgba(0, 0, 0, 0.8)",
     }
@@ -661,16 +661,7 @@ export let LineChart = function (ctx, options) {
             // (Line Chart Canvas Library 1.3) - Если словили координаты, тогда рисуем контейнер и передаем туда два свойства с координатами X и Y
 
             // (Line Chart Canvas Library 1.3) - Проверяем на какой половине графика мы словили наведение на круг, чтобы узнать с какой стороны отрисовывать контейнер
-            if (coordinatesForChartInfoContainer.x < rectFieldWidth / 2) {
-                /* (Line Chart Canvas Library 1.3):
-                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
-                    2 - .
-                */
-                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
-                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
-
-                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
-            } else {
+            if (coordinatesForChartInfoContainer.x > rectFieldWidth / 2) {
                 /* (Line Chart Canvas Library 1.3):
                     1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
                     2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
@@ -679,7 +670,17 @@ export let LineChart = function (ctx, options) {
                 let infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
                 let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
 
-                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName);
+                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'right');
+            } else {
+                /* (Line Chart Canvas Library 1.3):
+                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
+                    2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
+                    деленой на 2 контейнера.
+                */
+                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x + infoContainerOptions.triangleWidth + 17;
+                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
+
+                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'left');
             }
         }
     }
@@ -693,7 +694,8 @@ export let LineChart = function (ctx, options) {
         infoContainerOptions, // Радиус и цвет заливки контейнера
         infoContainerFontOptions, // Настройки шрифтов используемых в контейнере
         lineColor, // Цвет линии
-        yDataNames // Имя данных
+        yDataNames, // Имя данных
+        triangleDirection
     ) {
         // Настройки текста
         let fontSize = infoContainerFontOptions.fontSize,
@@ -717,7 +719,13 @@ export let LineChart = function (ctx, options) {
         ctx.fillStyle = containerFillColor;
 
         // Используем созданную нами функцию для рисования прямоугольников с закругленными углами
-        drawRoundedRect(ctx, xContainerCoord, yContainerCoord, containerWidth, containerHeight, containerRadius, triangleWidth, true);
+        drawRoundedRect(ctx, xContainerCoord, yContainerCoord, containerWidth, containerHeight, containerRadius);
+        // Проверяем какое направление треугольника передала нам функция до этой и в зависимости от ответа используем функцию для рисования треугольника
+        if (triangleDirection === 'right') {
+            drawTriangle(ctx, xContainerCoord + containerWidth, yContainerCoord + containerHeight / 2, triangleWidth, 10, 'right');
+        } else if (triangleDirection === 'left') {
+            drawTriangle(ctx, xContainerCoord - 10, yContainerCoord + containerHeight / 2, triangleWidth, 10, 'left');
+        }
 
         // Заливаем его
         ctx.fill();
@@ -727,23 +735,24 @@ export let LineChart = function (ctx, options) {
 
         // Сохраняем стили для текста
         ctx.save();
-        /* Рисуем текст, который связан с нарисованным текстом по оси Y ( Рисуем его там, где находится наш 
+        /* Рисуем текст, который связан с нарисованным текстом по оси X ( Рисуем его там, где находится наш 
             контейнер + величина нашего шрифта и + 3 по оси X и + 15 по оси Y, чтобы текст был не возле краёв )
         */
         ctx.fillText('Time:', xContainerCoord, yContainerCoord + 15);
+        ctx.fillText('00:00', xContainerCoord + ctx.measureText('Time:').width + 5, yContainerCoord + 15);
 
         // Рисуем квадратик с цветом наших данных, по которым чертятся линии
         ctx.fillStyle = dataMarkerColor;
-        drawRoundedRect(ctx, xContainerCoord, (yContainerCoord + 32) - dataMarkerWidth / 2, dataMarkerWidth, dataMarkerHeight, 0, triangleWidth, false);
+        drawRoundedRect(ctx, xContainerCoord, (yContainerCoord + 32) - dataMarkerWidth / 2, dataMarkerWidth, dataMarkerHeight, 0);
         ctx.fill();
         // Откатываемся до последнего сохранения, чтобы поставить правильные стили для текста
         ctx.restore();
 
-        // Рисуем текст, который связан с нарисованным текстом по оси X, убраем жирный шрифт
+        // Рисуем текст, который связан с нарисованным текстом по оси Y, убраем жирный шрифт
         editText(ctx, fontSize, fontFamily);
 
         ctx.fillText(yDataNames + ':', xContainerCoord + dataMarkerWidth + 3, yContainerCoord + 33);
-
+        ctx.fillText('12.7', xContainerCoord + dataMarkerWidth + 3 + ctx.measureText(yDataNames + ':').width + 5, yContainerCoord + 33);
     };
 
 
