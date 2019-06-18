@@ -373,7 +373,7 @@ export let LineChart = function (ctx, options) {
             не рисовалось на одну линию блоков больше. */
         for (let i = 0; i < yDataRectQuantity - 1; i++) {
             for (let j = 0; j < xDataRectQuantity - 1; j++) {
-                ctx.strokeRect(rectFieldOptions.xStartPos + j * width, rectFieldOptions.xStartPos + i * height, width, height)
+                ctx.strokeRect(rectFieldOptions.xStartPos + j * width, rectFieldOptions.xStartPos + i * height, width, height);
             }
         }
     }
@@ -513,7 +513,8 @@ export let LineChart = function (ctx, options) {
 
         let xDataRectQuantityOriginal = xAxisDataOptions.originalRectQuantity,
             xDataRectQuantity = xAxisDataOptions.rectQuantity,
-            xDataConfineValue = xAxisDataOptions.confineValue;
+            xDataConfineValue = xAxisDataOptions.confineValue,
+            xDataSorted = xAxisDataOptions.sortedData;
 
         let yDataOriginal = yAxisDataOptions.originalData[0],
             yDataSorted = yAxisDataOptions.sortedData,
@@ -521,7 +522,8 @@ export let LineChart = function (ctx, options) {
             yDataStep = yAxisDataOptions.step,
             yStepFactor = yAxisDataOptions.stepFactor,
             yDataMinusQuantity = yAxisDataOptions.minusValueQuantity,
-            yDataName = yAxisDataOptions.dataName;
+            yDataName = yAxisDataOptions.dataName,
+            yDataMinStep = yAxisDataOptions.minStep;
 
         let rectFieldHeight = rectFieldOptions.height,
             rectFieldWidth = rectFieldOptions.width,
@@ -637,6 +639,7 @@ export let LineChart = function (ctx, options) {
                         x: (fieldXStartPos + rectWidth / 2 * i),
                         y: (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue
                     };
+
                 } else {
                     ctx.arc((fieldXStartPos + rectWidth / 2 * i), (rectFieldHeight + fieldYStartPos) - heightFindFormula - moveUpValue + moveDownValue, arcRadius, 0, 2 * Math.PI);
                 }
@@ -652,6 +655,7 @@ export let LineChart = function (ctx, options) {
                 }
             }
         }
+
         ctx.stroke();
         ctx.fill();
 
@@ -677,10 +681,61 @@ export let LineChart = function (ctx, options) {
                     2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
                     деленой на 2 контейнера.
                 */
+                
+
+                
+                let yText = getYAxisText(
+                    yDataOriginal,
+                    xDataSorted,
+                    coordinatesForChartInfoContainer.x,
+                    function (i) {
+                        return fieldXStartPos + rectWidth * i;
+                    }
+                );
+
+
+                function getYAxisText(
+                    yTextarray,
+                    xTextArray, // Массив из которого нам нужно возвратить текст
+                    xCoordinate, // Текущая координата текста
+                    drawTextFormula // Формула, по которой отрисовывался текст
+                ) {
+                    let yText;
+                    xTextArray.forEach(function(xText, xTextIndex) {
+                        if (xCoordinate == drawTextFormula(xTextIndex)) {
+                            yText = yTextarray[xTextIndex];
+                            return yText;
+                        }
+                    });
+                    return yText;
+                }
+
+
+                let xText = getXAxisText(
+                    xDataSorted,
+                    coordinatesForChartInfoContainer.x,
+                    function (i) {
+                        return fieldXStartPos + rectWidth * i;
+                    }
+                );
+
+                // Функция для нахождения текста и его возвращения
+                function getXAxisText(
+                    textArray, // Массив из которого нам нужно возвратить текст
+                    xCoordinate, // Текущая координата текста
+                    drawTextFormula // Формула, по которой отрисовывался текст
+                ) {
+                    return textArray.filter(function (text, textIndex) {
+                        return xCoordinate == drawTextFormula(textIndex);
+                    });
+                }
+
+
+
                 let infoContainerXCoordinate = coordinatesForChartInfoContainer.x + infoContainerOptions.triangleWidth + 17;
                 let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
 
-                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'left');
+                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'left', xText, yText);
             }
         }
     }
@@ -695,7 +750,9 @@ export let LineChart = function (ctx, options) {
         infoContainerFontOptions, // Настройки шрифтов используемых в контейнере
         lineColor, // Цвет линии
         yDataNames, // Имя данных
-        triangleDirection
+        triangleDirection,
+        xText,
+        yText
     ) {
         // Настройки текста
         let fontSize = infoContainerFontOptions.fontSize,
@@ -739,7 +796,7 @@ export let LineChart = function (ctx, options) {
             контейнер + величина нашего шрифта и + 3 по оси X и + 15 по оси Y, чтобы текст был не возле краёв )
         */
         ctx.fillText('Time:', xContainerCoord, yContainerCoord + 15);
-        ctx.fillText('00:00', xContainerCoord + ctx.measureText('Time:').width + 5, yContainerCoord + 15);
+        ctx.fillText(xText, xContainerCoord + ctx.measureText('Time:').width + 5, yContainerCoord + 15);
 
         // Рисуем квадратик с цветом наших данных, по которым чертятся линии
         ctx.fillStyle = dataMarkerColor;
@@ -752,7 +809,7 @@ export let LineChart = function (ctx, options) {
         editText(ctx, fontSize, fontFamily);
 
         ctx.fillText(yDataNames + ':', xContainerCoord + dataMarkerWidth + 3, yContainerCoord + 33);
-        ctx.fillText('12.7', xContainerCoord + dataMarkerWidth + 3 + ctx.measureText(yDataNames + ':').width + 5, yContainerCoord + 33);
+        ctx.fillText(yText, xContainerCoord + dataMarkerWidth + 3 + ctx.measureText(yDataNames + ':').width + 5, yContainerCoord + 33);
     };
 
 
