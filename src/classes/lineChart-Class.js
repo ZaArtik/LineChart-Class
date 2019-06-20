@@ -4,6 +4,7 @@ import { getUniqueValues } from './helperFunctions/getUniqueValues'; // Функ
 import { drawStraightLine } from './helperFunctions/drawStraightLine'; // Функция для рисования прямой линии
 import { drawRoundedRect } from './helperFunctions/drawRoundedRect'; // Функция для рисования прямоугольника и с закругленными углами
 import { drawTriangle } from './helperFunctions/drawTriangle'; // Функция для рисования треугольника
+import { getYAxisText, getXAxisText } from './helperFunctions/getAxisTexts'; // Функции для поиска и извелечине текущего текста в диаграмке
 
 
 // Class
@@ -514,7 +515,8 @@ export let LineChart = function (ctx, options) {
         let xDataRectQuantityOriginal = xAxisDataOptions.originalRectQuantity,
             xDataRectQuantity = xAxisDataOptions.rectQuantity,
             xDataConfineValue = xAxisDataOptions.confineValue,
-            xDataSorted = xAxisDataOptions.sortedData;
+            xDataSorted = xAxisDataOptions.sortedData,
+            xDataOriginal = xAxisDataOptions.originalData;
 
         let yDataOriginal = yAxisDataOptions.originalData[0],
             yDataSorted = yAxisDataOptions.sortedData,
@@ -659,84 +661,71 @@ export let LineChart = function (ctx, options) {
         ctx.stroke();
         ctx.fill();
 
-        // (Line Chart Canvas Library 1.3) - Проверяем или словили мы координаты во время очередной прорисовки графика.
+        // (Line Chart Canvas Library 1.3) - Проверяем или мы словили координаты во время очередной прорисовки графика.
         if (coordinatesForChartInfoContainer != undefined) {
+            // Переменная в которой хранится формула нахождения рисования текста и точек
+            let drawTextFormula;
+            // Проверка на количество элементов, если оно превышает нужное количество, тогда меняем формулу
+            xDataRectQuantityOriginal <= xDataConfineValue ? 
+            drawTextFormula = (i) => fieldXStartPos + rectWidth * i :
+            drawTextFormula = (i) => fieldXStartPos + rectWidth / 2 * i;
 
-            // (Line Chart Canvas Library 1.3) - Если словили координаты, тогда рисуем контейнер и передаем туда два свойства с координатами X и Y
+            // Переменные для работы с информационным контейнером
+            let infoContainerXCoordinate, // Начало координат контейнера по X
+                infoContainerYCoordinate, // Начало координат контейнера по Y
+                xText, // Текст, который будет взят из оси X
+                yText, // Текст, который будет взят из оси Y
+                direction; // Направление в котором будет отрисован контейнер
 
             // (Line Chart Canvas Library 1.3) - Проверяем на какой половине графика мы словили наведение на круг, чтобы узнать с какой стороны отрисовывать контейнер
             if (coordinatesForChartInfoContainer.x > rectFieldWidth / 2) {
-                /* (Line Chart Canvas Library 1.3):
-                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
-                    2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
-                    деленой на 2 контейнера.
-                */
-                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
-                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
-
-                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'right');
-            } else {
-                /* (Line Chart Canvas Library 1.3):
-                    1 - Выносим много переменных из функции рисования контейнера, чтобы их можно было использовать не только в ней.
-                    2 - Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
-                    деленой на 2 контейнера.
-                */
-                
-
-                
-                let yText = getYAxisText(
+                // Ищем с помощью импортированых функций текст по X и Y и кладем его в новые переменные
+                yText = getYAxisText(
                     yDataOriginal,
-                    xDataSorted,
+                    xDataOriginal,
                     coordinatesForChartInfoContainer.x,
-                    function (i) {
-                        return fieldXStartPos + rectWidth * i;
-                    }
+                    drawTextFormula
                 );
 
-
-                function getYAxisText(
-                    yTextarray,
-                    xTextArray, // Массив из которого нам нужно возвратить текст
-                    xCoordinate, // Текущая координата текста
-                    drawTextFormula // Формула, по которой отрисовывался текст
-                ) {
-                    let yText;
-                    xTextArray.forEach(function(xText, xTextIndex) {
-                        if (xCoordinate == drawTextFormula(xTextIndex)) {
-                            yText = yTextarray[xTextIndex];
-                            return yText;
-                        }
-                    });
-                    return yText;
-                }
-
-
-                let xText = getXAxisText(
-                    xDataSorted,
+                xText = getXAxisText(
+                    xDataOriginal,
                     coordinatesForChartInfoContainer.x,
-                    function (i) {
-                        return fieldXStartPos + rectWidth * i;
-                    }
+                    drawTextFormula
                 );
 
-                // Функция для нахождения текста и его возвращения
-                function getXAxisText(
-                    textArray, // Массив из которого нам нужно возвратить текст
-                    xCoordinate, // Текущая координата текста
-                    drawTextFormula // Формула, по которой отрисовывался текст
-                ) {
-                    return textArray.filter(function (text, textIndex) {
-                        return xCoordinate == drawTextFormula(textIndex);
-                    });
-                }
+                /*
+                    Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
+                    деленой на 2 контейнера.
+                */
+                infoContainerXCoordinate = coordinatesForChartInfoContainer.x - infoContainerOptions.containerWidth - infoContainerOptions.triangleWidth - hoverArcRadius;
+                infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
+                // Выбираем направление в котором будет прорисован контейнер
+                direction = 'right';
+            } else {
+                // Ищем с помощью импортированых функций текст по X и Y и кладем его в новые переменные
+                yText = getYAxisText(
+                    yDataOriginal,
+                    xDataOriginal,
+                    coordinatesForChartInfoContainer.x,
+                    drawTextFormula
+                );
 
+                xText = getXAxisText(
+                    xDataOriginal,
+                    coordinatesForChartInfoContainer.x,
+                    drawTextFormula
+                );
 
-
-                let infoContainerXCoordinate = coordinatesForChartInfoContainer.x + infoContainerOptions.triangleWidth + 17;
-                let infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
-
-                drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, 'left', xText, yText);
+                /*  
+                    Расчитываем позицию путем вытягивания ранее словленных координат круга и отнимания от этого значения ширины и высоты
+                    деленой на 2 контейнера.
+                */
+                infoContainerXCoordinate = coordinatesForChartInfoContainer.x + infoContainerOptions.triangleWidth + 17;
+                infoContainerYCoordinate = coordinatesForChartInfoContainer.y - infoContainerOptions.containerHeight / 2;
+                // Выбираем направление в котором будет прорисован контейнер
+                direction = 'left';
             }
+            drawChartInfoContainer(ctx, infoContainerXCoordinate, infoContainerYCoordinate, infoContainerOptions, infoContainerFontOptions, chartLineOptions.lineColor, yDataName, direction, xText, yText);
         }
     }
 
