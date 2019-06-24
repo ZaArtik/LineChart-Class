@@ -32,7 +32,12 @@ if (canvas.getContext) {
             datasets: [{
                 name: 'Temperature',
                 yData: times2
-            }]
+            },
+            {
+                name: 'Value',
+                yData: [5, 10, 15]
+            }
+            ]
         },
 
         rectOptions: {
@@ -69,6 +74,6 @@ if (canvas.getContext) {
 }
 
 
-/* 
+/*
 
 */

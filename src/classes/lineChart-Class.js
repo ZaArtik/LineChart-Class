@@ -73,19 +73,8 @@ export let LineChart = function (ctx, options) {
     }
 
     // (Line Chart Canvas Library 1.31)
-    // Закрываем это все в анонимной функции, чтобы не обьявлять эти все переменные в глобальной области видимости класса
+    // Закрываем это все в анонимной функции, чтобы не обьявлять переменные в глобальной области видимости класса
     ; (function () {
-        // Переменная с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
-        let yDataSorted = yAxisDataOptions.sortedData[0] || [];
-
-        // Оставаляем только уникальные значения, тем самым формируя уже готовый массив с даннными для оси Y
-        yDataSorted = getUniqueValues(yDataSorted);
-
-        // Сортируем массив данных по увеличению
-        yDataSorted.sort(function (firstNumb, secondNumb) {
-            return firstNumb - secondNumb;
-        });
-
         // Шаги которые будут обьявлять количество блоков по Y и текст, который будет писаться возле линии
         let yDataStep = yAxisDataOptions.step;
         // Здесь будет хранится минимальное значение отсортированного массива, в случае отсутствия нуля, чтобы начинать отсчет шагов именно с него
@@ -96,106 +85,122 @@ export let LineChart = function (ctx, options) {
         let yDataMinusQuantity = yAxisDataOptions.minusValueQuantity;
         // Обьявляем переменную, которая будет хранить количество блочков по оси Y
         let yDataRectQuantity = yAxisDataOptions.rectQuantity;
-        // Формула по нахождению шага ( заключил в анонимную функцию. чтобы не сохранять промежуточную переменную)
-        ; (function () {
-            // Проверяем наличие минусовых значений ( Действия отличаются, если таковы присутствуют )
-            if (yDataSorted[0] >= 0) {
-                // Берем последнее число нашего отсортированного массива ( получается - самое большое число и делим его на 5)
-                let intermediateNumber = +yDataSorted[yDataSorted.length - 1] / 5;
-                /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
-                    наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
-                yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
 
-                // (1.1 Canvas Library) - Запихиваем проверку на ноль в блоки кода, которые выполняются взависимо от наличия минусовых значений
-                if (yDataSorted.indexOf('0') >= 0 || yDataSorted[0].split('')[0] === '-' || +yDataSorted[0] < yDataStep) {
-                    yStepFactor = 0;
-                } else {
-                    /* (1.1 Canvas Library) - Создаем промежуточную переменную, наш делитель и увеличиваем его на 1, пока он не станет
-                        равным или больше числа 5. Эта переменная нам будет нужна, чтобы уменьшить количество шагов, и соответственно 
-                        увеличить количество блоков и текста.
-                    */
-                    let dividerValue = 0;
-                    while (dividerValue <= 5) {
-                        dividerValue += 1;
-                    }
+        yAxisDataOptions.sortedData.forEach((sortData, sortDataIndex) => {
+            // Переменная с нашими данными для оси Y, которая будет отсортированная для правильной настройки текста
+            let yDataSorted = sortData || [];
 
-                    yStepFactor = 1;
+            // Оставаляем только уникальные значения, тем самым формируя уже готовый массив с даннными для оси Y
+            yDataSorted = getUniqueValues(yDataSorted);
 
-                    // Поверка на маленький шаг, если он мелкий, тогда делаем дробь из нашего шага
-                    if (yDataStep <= 10) {
+            // Сортируем массив данных по увеличению
+            yDataSorted.sort(function (firstNumb, secondNumb) {
+                return firstNumb - secondNumb;
+            });
+
+            // Формула по нахождению шага ( заключил в анонимную функцию. чтобы не сохранять промежуточную переменную)
+            ; (function () {
+                // Проверяем наличие минусовых значений ( Действия отличаются, если таковы присутствуют )
+                if (yDataSorted[0] >= 0) {
+                    // Берем последнее число нашего отсортированного массива ( получается - самое большое число и делим его на 5)
+                    let intermediateNumber = +yDataSorted[yDataSorted.length - 1] / 5;
+                    /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
+                        наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
+                    yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
+
+                    // (1.1 Canvas Library) - Запихиваем проверку на ноль в блоки кода, которые выполняются взависимо от наличия минусовых значений
+                    if (yDataSorted.indexOf('0') >= 0 || yDataSorted[0].split('')[0] === '-' || +yDataSorted[0] < yDataStep) {
+                        yStepFactor = 0;
+                    } else {
+                        /* (1.1 Canvas Library) - Создаем промежуточную переменную, наш делитель и увеличиваем его на 1, пока он не станет
+                            равным или больше числа 5. Эта переменная нам будет нужна, чтобы уменьшить количество шагов, и соответственно 
+                            увеличить количество блоков и текста.
+                        */
+                        let dividerValue = 0;
+                        while (dividerValue <= 5) {
+                            dividerValue += 1;
+                        }
+
+                        yStepFactor = 1;
+
+                        // Поверка на маленький шаг, если он мелкий, тогда делаем дробь из нашего шага
+                        if (yDataStep <= 10) {
+                            // Старый вариант
+                            // yDataStep = yDataStep / dividerValue;
+                            yDataStep = +(yDataStep / dividerValue).toFixed(1);
+                        }
+
+                        // Если нуля нету, записываем наш минимальный шаг
+                        yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
                         // Старый вариант
-                        // yDataStep = yDataStep / dividerValue;
-                        yDataStep = +(yDataStep / dividerValue).toFixed(1);
+                        // yDataMinStep = Math.round(yDataMinStep);
+
+                        // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
+                        yDataRectQuantity--;
+                    }
+                    /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
+                        массива + один шаг, прибавляем количество наших блочков
+                        (1.1 Canvas Plugin) - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
+                        чтобы корректно отображалось правильное количество блоков
+                    */
+                    for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
+                        yDataRectQuantity++;
                     }
 
-                    // Если нуля нету, записываем наш минимальный шаг
-                    yDataMinStep = +(yDataSorted[0] - yDataStep).toFixed(1);
-                    // Старый вариант
-                    // yDataMinStep = Math.round(yDataMinStep);
+                    /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
+                        увеличиваем количество блоков еще на один 
+                        (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
+                        количества блоков)
+                    */
+                    if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
+                        yDataRectQuantity++
+                    };
 
-                    // Если ноль нам не нужен, тогда уменьшаем количество отрисоваемых блоков по оси Y
-                    yDataRectQuantity--;
+                    /*  (1.2 CanvasPlugin): 
+                        1 - Удалена лишняя проверка.
+                        2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
+                        последнее отрисованное число на графике с помощью переменной yDataStep.
+                    */
+                    if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
+                        yDataRectQuantity++;
+                    }
+
+                } else {
+                    /*  Берем последнее число нашего отсортированного массива и прибавляем к нему 
+                        первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) 
+                    */
+                    let intermediateNumber = (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]) / 5;
+                    /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
+                        наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
+                    yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
+                    // Считаем количество минусов до нолика, путем деления первого элемента на шаг, округляем к наибольшему значению
+                    yDataMinusQuantity = Math.ceil(-yDataSorted[0] / +yDataStep);
+
+                    /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
+                        массива + один шаг, прибавляем количество наших блочков*/
+                    for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
+                        yDataRectQuantity++;
+                    }
+
+                    /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
+                        увеличиваем количество блоков еще на один */
+                    if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
+                        yDataRectQuantity++;
+                    };
+
+                    // Проверка на то, что последнее плюсовое число не меньше последнего числа массива данных
+                    // Отнимаем 1, чтобы не считать 0
+                    let yDatapositiveBalance = (yDataRectQuantity - yDataMinusQuantity) - 1;
+                    /* Если все умножить количество плюсовых чисел на шаг и результат будет меньше, чем последнее число 
+                    массива данных, тогда увеличить количество чисел возле линии */
+                    if (yDatapositiveBalance * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
+                        yDataRectQuantity++;
+                    }
                 }
-                /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
-                    массива + один шаг, прибавляем количество наших блочков
-                    (1.1 Canvas Plugin) - К умножению шага на текущее значение иттерации прибавляем еще наш минимальный шаг, 
-                    чтобы корректно отображалось правильное количество блоков
-                */
-                for (let i = 0; yDataStep * i + yDataMinStep <= +yDataSorted[yDataSorted.length - 1]; i++) {
-                    yDataRectQuantity++;
-                }
-
-                /* Дополнительная проверка - делим по модулю последнее число массива на шаги, если есть остаток, значит
-                    увеличиваем количество блоков еще на один 
-                    (1.1 CanvasPlugin - Делим по модулю на значение шага + значение минимального шага для корректного отображения
-                    количества блоков)
-                */
-                if (+yDataSorted[yDataSorted.length - 1] % (yDataStep + yDataMinStep) != 0) {
-                    yDataRectQuantity++
-                };
-
-                /*  (1.2 CanvasPlugin): 
-                    1 - Удалена лишняя проверка.
-                    2 - Добавлена проверка на то, что последнее число отсортированного массива данных по оси Y не меньше, чем
-                    последнее отрисованное число на графике с помощью переменной yDataStep.
-                */
-                if (yDataRectQuantity * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
-                    yDataRectQuantity++;
-                }
-
-            } else {
-                /*  Берем последнее число нашего отсортированного массива и прибавляем к нему 
-                    первое значение массива, перед этим конвертировавши его в плюсовое ( получается - самое большое число и делим его на 5) 
-                */
-                let intermediateNumber = (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]) / 5;
-                /* Теперь, отнимаем получившееся число от этого числа деленого на 5 по модулю, если итог равен 0, тогда просто округляем
-                    наше получившееся число, в ином случае делаем задуманное, отнимаем число от этого же числа деленного на 5 по модулю */
-                yDataStep = intermediateNumber - (intermediateNumber % 5) === 0 ? Math.round(intermediateNumber) : intermediateNumber - (intermediateNumber % 5);
-                // Считаем количество минусов до нолика, путем деления первого элемента на шаг, округляем к наибольшему значению
-                yDataMinusQuantity = Math.ceil(-yDataSorted[0] / +yDataStep);
-
-                /* Прогоняемся по циклу, умножаем шаги на i, пока это число меньше, чем последний элемент 
-                    массива + один шаг, прибавляем количество наших блочков*/
-                for (let i = 0; yDataStep * i <= +yDataSorted[yDataSorted.length - 1] + -yDataSorted[0]; i++) {
-                    yDataRectQuantity++;
-                }
-
-                /* Дополнительная проверка - делим по модулю последнее число массива + первое число массива на шаги, если есть остаток, значит
-                    увеличиваем количество блоков еще на один */
-                if (+yDataSorted[yDataSorted.length - 1] + -yDataSorted[0] % yDataStep != 0) {
-                    yDataRectQuantity++;
-                };
-
-                // Проверка на то, что последнее плюсовое число не меньше последнего числа массива данных
-                // Отнимаем 1, чтобы не считать 0
-                let yDatapositiveBalance = (yDataRectQuantity - yDataMinusQuantity) - 1;
-                /* Если все умножить количество плюсовых чисел на шаг и результат будет меньше, чем последнее число 
-                массива данных, тогда увеличить количество чисел возле линии */
-                if (yDatapositiveBalance * yDataStep < +yDataSorted[yDataSorted.length - 1]) {
-                    yDataRectQuantity++;
-                }
-            }
-        })();
+                // Отсортированный массив данных
+                yAxisDataOptions.sortedData[sortDataIndex] = yDataSorted;
+            })();
+        });
 
         // Высота одного блока ( Делим высоту поля на количество блоков по Y - 1, потому что рисуется на один блок больше, чем текста)
         // Присваиваем высоту свойству объекта, в котором хранятся настройки наших блоков
@@ -212,8 +217,6 @@ export let LineChart = function (ctx, options) {
         yAxisDataOptions.minusValueQuantity = yDataMinusQuantity;
         // Обьявляем переменную, которая будет хранить количество блочков по оси Y
         yAxisDataOptions.rectQuantity = yDataRectQuantity;
-        // Отсортированный массив данных
-        yAxisDataOptions.sortedData = yDataSorted;
     })();
 
     /* -------- Настройка блоков по оси X -------- */
@@ -519,7 +522,7 @@ export let LineChart = function (ctx, options) {
             xDataOriginal = xAxisDataOptions.originalData;
 
         let yDataOriginal = yAxisDataOptions.originalData[0],
-            yDataSorted = yAxisDataOptions.sortedData,
+            yDataSorted = yAxisDataOptions.sortedData[0],
             yDataRectQuantity = yAxisDataOptions.rectQuantity,
             yDataStep = yAxisDataOptions.step,
             yStepFactor = yAxisDataOptions.stepFactor,
@@ -666,9 +669,9 @@ export let LineChart = function (ctx, options) {
             // Переменная в которой хранится формула нахождения рисования текста и точек
             let drawTextFormula;
             // Проверка на количество элементов, если оно превышает нужное количество, тогда меняем формулу
-            xDataRectQuantityOriginal <= xDataConfineValue ? 
-            drawTextFormula = (i) => fieldXStartPos + rectWidth * i :
-            drawTextFormula = (i) => fieldXStartPos + rectWidth / 2 * i;
+            xDataRectQuantityOriginal <= xDataConfineValue ?
+                drawTextFormula = (i) => fieldXStartPos + rectWidth * i :
+                drawTextFormula = (i) => fieldXStartPos + rectWidth / 2 * i;
 
             // Переменные для работы с информационным контейнером
             let infoContainerXCoordinate, // Начало координат контейнера по X
